@@ -60,6 +60,25 @@ def api_all():
 #     return jsonify(all)
     return jsonify(q('SELECT * FROM SignIn;'))
 
+@app.route('/api/v1/events/current/html', methods=['GET'])
+def api_all_html():
+    all=q('SELECT * FROM SignIn;')
+    here=q("SELECT * FROM SignIn WHERE Status = 'SignedIn';")
+    cols=["ID","Name","TimeIn","TimeOut","Total"]
+    html = "<html><head><title>SignIn Database</title></head><body>"
+    html+="Total:"+str(len(all))+"&nbsp&nbsp&nbspHere:"+str(len(here))
+    html+="<table border='1'>"
+    html+="<tr>"
+    for col in cols:
+        html+="<th>"+col+"</th>"
+    html+="</tr>"
+    for row in q('SELECT * FROM SignIn;'):
+        html+="<tr>"
+        for col in cols:
+            html+="<td>"+row[col]+"</td>"
+        html+="</tr>"
+    html+="</body></html>"
+    return html
 
 # it's cleaner to let the host decide whether to add or to update;
 # if ID, Agency, Name, and InEpoch match those of an existing record,
