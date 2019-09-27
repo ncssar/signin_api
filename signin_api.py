@@ -26,7 +26,7 @@ import json
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
-        
+
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
@@ -149,7 +149,12 @@ def api_add_or_update():
     else:
         return jsonify({'error': 'more than one record in the host database matched the ID,Name,Agency,InEpoch values from the sign-in action'}), 405
 
-    return jsonify({'query': 'ok'}), 200
+    # now get the same record(s) from the local (host) db so the downstream tool can validate
+    #  note that it should only return one record; the downstream tool should check
+    validate=q("SELECT * FROM {tablename} WHERE {condition};".format(
+            tablename='SignIn',
+            condition=condition))
+    return jsonify({'query': query,'validate': validate}), 200
 
 # @app.route('/api/v1/events/current/add', methods=['POST'])
 # def api_add():
