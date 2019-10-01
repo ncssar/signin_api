@@ -63,8 +63,8 @@ def api_all():
 @app.route('/api/v1/events/current/html', methods=['GET'])
 def api_all_html():
     all=q('SELECT * FROM SignIn;')
-    here=q("SELECT * FROM SignIn WHERE Status = 'SignedIn';")
-    cols=["ID","Name","TimeIn","TimeOut","Total"]
+    here=q("SELECT * FROM SignIn WHERE Status != 'SignedOut';")
+    cols=["ID","Name","TimeIn","TimeOut","Total","Status"]
     html = "<html><head><title>SignIn Database</title></head><body>"
     html+="Total:"+str(len(all))+"&nbsp&nbsp&nbspHere:"+str(len(here))
     html+="<table border='1'>"
@@ -93,7 +93,10 @@ def api_add_or_update():
     if not request.json:
         app.logger.info("no json")
         return "<h1>400</h1><p>Request has no json payload.</p>", 400
-    d=json.loads(request.json)
+    if type(request.json) is str:
+        d=json.loads(request.json)
+    else: #kivy UrlRequest sends the dictionary itself
+        d=request.json
 #     d['InEpoch']=round(d['InEpoch'],2)
 #     d['OutEpocj']=round(d['OutEpoch'],2)
     
