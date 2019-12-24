@@ -16,6 +16,7 @@
 #-----------------------------------------------------------------------------
 #   DATE   | AUTHOR | VER |  NOTES
 #-----------------------------------------------------------------------------
+#  12-11-19   TMG     0.9   first upload to cloud
 #
 # #############################################################################
 
@@ -23,12 +24,27 @@ import flask
 from flask import request, jsonify
 # import sqlite3
 import json
-
-from signin_db import *
+import sys
+from pathlib import Path
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
+# on pythonanywhere, the relative path ./sign-in should be added instead of ../sign-in
+#  since the current working dir while this script is running is /home/caver456
+#  even though the script is in /home/caver456/signin_api
+# while it should be ok to load both, it's a lot cleaner to check for the
+#  one that actually exists
+p=Path('../sign-in')
+if not p.exists():
+    p=Path('./sign-in')
+pr=str(p.resolve())
+sys.path.append(pr)
+app.logger.info("python search path:"+str(sys.path))
+
+from signin_db import *
+
+# response = jsonified list of dict and response code
 @app.route('/api/v1/events/new', methods=['POST'])
 def api_newEvent():
     app.logger.info("new called")
@@ -39,20 +55,35 @@ def api_newEvent():
         d=json.loads(request.json)
     else: #kivy UrlRequest sends the dictionary itself
         d=request.json
-    return newEvent(d)
+    r=sdbNewEvent(d)
+    app.logger.info("sending response from api_newEvent:"+str(r))
+    return jsonify(r)
 
 @app.route('/', methods=['GET'])
 def home():
     return '''<h1>SignIn Database API</h1>
 <p>API for interacting with the sign-in databases</p>'''
 
+# response = jsonified list
+@app.route('/api/v1/events',methods=['GET'])
+def api_getEvents():
+    lastEditSince=request.args.get("lastEditSince",0)
+    eventStartSince=request.args.get("eventStartSince",0)
+    nonFinalizedOnly=request.args.get("nonFinalizedOnly",False)
+    nonFinalizedOnly=str(nonFinalizedOnly).lower()=='true' # convert to boolean
+    app.logger.info("events called: lastEditSince="+str(lastEditSince)
+            +" eventStartSince="+str(eventStartSince)
+            +" nonFinalizedOnly="+str(nonFinalizedOnly))
+    return jsonify(sdbGetEvents(lastEditSince,eventStartSince,nonFinalizedOnly))
+
 @app.route('/api/v1/events/<int:eventID>', methods=['GET'])
 def api_getEvent(eventID):
-    return getEvent(eventID)
+    return jsonify(sdbGetEvent(eventID))
+#     return "<html>stuff<html>"
 
-@app.route('/api/v1/events/current', methods=['GET'])
-def api_all():
-    return all()
+# @app.route('/api/v1/events/current', methods=['GET'])
+# def api_all():
+#     return all()
 
 @app.route('/api/v1/events/<int:eventID>/html', methods=['GET'])
 def api_getEventHTML(eventID):
@@ -67,7 +98,6 @@ def api_getEventHTML(eventID):
 
 @app.route('/api/v1/events/<int:eventID>', methods=['PUT'])
 def api_add_or_update(eventID):
-    app.logger.info("put1")
     app.logger.info("put called for event "+str(eventID))
     if not request.json:
         app.logger.info("no json")
@@ -76,11 +106,15 @@ def api_add_or_update(eventID):
         d=json.loads(request.json)
     else: #kivy UrlRequest sends the dictionary itself
         d=request.json
-    return add_or_update(eventID,d)
+    return jsonify(sdbAddOrUpdate(eventID,d))
 
 @app.errorhandler(404)
 def page_not_found(e):
     return "<h1>404</h1><p>The resource could not be found.</p>", 404
 
-
-app.run()
+# app.run() must be run on localhost flask and LAN flask, but not on cloud (WSGI);
+#  check to see if the resolved path directory contains '/home'; this may
+#  need to change when LAN server is incorporated, since really it is just checking
+#  for linux vs windows
+if '/home' not in pr:
+    app.run()
