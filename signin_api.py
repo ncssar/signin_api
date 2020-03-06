@@ -3,9 +3,7 @@
 #  signin_api.py - host web API code for sign-in app
 #
 #  sign-in is developed for Nevada County Sheriff's Search and Rescue
-#    Copyright (c) 2019 Tom Grundy
-#
-#   sign-in (c) 2019 Tom Grundy, using kivy and buildozer
+#    Copyright (c) 2020 Tom Grundy
 #
 #  http://github.com/ncssar/sign-in
 #
@@ -50,6 +48,7 @@ sys.path.append(pr)
 app.logger.info("python search path:"+str(sys.path))
 
 from signin_db import *
+from signin_push import sdbPush
 
 
 ###############################
@@ -154,6 +153,21 @@ def api_add_or_update(eventID):
     else: #kivy UrlRequest sends the dictionary itself
         d=request.json
     return jsonify(sdbAddOrUpdate(eventID,d))
+
+
+
+# finalize: eventID = cloud database event ID
+# 1. set the event to finalized
+# 2. call sdbPush: if it's not a d4h activity, sdbPush will end early but cleanly
+
+@app.route('/api/v1/finalize/<int:eventID>',methods=['POST'])
+@require_appkey
+def api_finalize(eventID):
+    app.logger.info("finalize called for event "+str(eventID))
+    rval=sdbPush(eventID)
+    if rval["statusCode"]>299:
+        return rval["message"],rval["statusCode"]
+    return jsonify(rval)
 
 
 @app.errorhandler(404)
